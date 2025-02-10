@@ -1,0 +1,2 @@
+# Prolog-Bootstrap
+Bootstrapping prolog
