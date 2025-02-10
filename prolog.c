@@ -1,12 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <assert.h>
 
 
 
 #define MAX_ARGS 5
 
 
+struct Term * create_variable(int i);
+struct Term * create_functor(char* name, int arity);
 
 struct Term {
   int variable;
@@ -65,6 +69,70 @@ char* to_string(struct Term* term) {
   return s;
 }
 
+struct Term* parse_with_index(char * s, int start, int* end) {
+  if (!s[start] || s[start] == ')') {
+    return NULL;
+  }
+  if (isdigit(s[start])) {
+    char name[100];
+    int i;
+    for (i = 0; s[start + i] && isdigit(s[start + i]); i++) {
+      name[i] = s[start + i];
+    }
+    name[i] = '\0';
+    *end = start + i;
+    char * end2;
+    int new_long = strtol(name, &end2, 10);
+    return create_variable(new_long);
+    
+  } else {
+    char name[100];
+    int i;
+    for (i = 0; s[start + i] && s[start + i] != '('; i++) {
+      name[i] = s[start + i];
+    }
+    name[i] = '\0';
+    assert(s[start + i] == '(');
+    i++;
+    // it's a functor
+    int length = strlen(name);
+    char *new_string = malloc(length + 1);
+    strcpy(new_string, &name[0]);
+    struct Term* new = create_functor(new_string,0);
+    int arity = 0;
+    start = start + i;
+    while (1) {
+      if (s[start] == ')') {
+        break;
+      }
+      struct Term* child = parse_with_index(s, start, end);
+      new->functor->args[arity] = child;
+      arity++;
+      start = *end;
+      if (s[start] == ',') {
+        start++;
+      }
+    }
+    start++;
+    *end = start;
+    new->functor->arity = arity;
+    return new;
+    
+
+  }
+  return 0;
+
+
+}
+
+struct Term* parse(char * s) {
+
+  int end;
+  return parse_with_index(s, 0, &end);
+}
+
+
+
 struct Term * create_variable(int i) {
   
   struct Term *t1 = malloc(sizeof *t1);
@@ -99,6 +167,13 @@ int main() {
 
   char* s = to_string(t3);
 
-  printf("%s", s);
+  printf("%s\n", s);
+
+
+  char* a = "12";
+  struct Term *a_term = parse(a);
+  printf("%s\n", to_string(a_term));
+
   
+  printf("%s\n", to_string(parse("hi(1)")));
 }
