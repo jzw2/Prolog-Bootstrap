@@ -39,6 +39,8 @@ struct Term* substitute(struct Term* outer, int variable, struct Term* inner) {
     new->variable = 0;
     new->functor = NULL;
     struct Functor* new_functor = malloc(sizeof (*new_functor));
+    new_functor->name = outer->functor->name; //pls no memeory leak
+    new_functor->arity = outer->functor->arity;
     new->functor = new_functor;
     for (int i = 0; i < outer->functor->arity; i++) {
       struct Term* subbed = substitute(outer->functor->args[i], variable, inner);
@@ -117,8 +119,6 @@ struct Term* parse_with_index(char * s, int start, int* end) {
     *end = start;
     new->functor->arity = arity;
     return new;
-    
-
   }
   return 0;
 
@@ -152,8 +152,8 @@ struct Term * create_functor(char* name, int arity) {
 }
 
 
-struct Term* unify(struct Term* a, struct Term* b) {
 
+struct Term* unify(struct Term* a, struct Term* b) {
   return 0;
 }
 
@@ -176,4 +176,13 @@ int main() {
 
   
   printf("%s\n", to_string(parse("hi(1)")));
+  printf("%s\n", to_string(parse("hi(a(1),2)")));
+  printf("%s\n", to_string(parse("hi(a(1),hello(3))")));
+
+
+  struct Term* sub_test = parse("hi(1)");
+  struct Term* var = parse("2");
+  struct Term* subbed = substitute(sub_test, 1, var);
+  printf("%s\n", to_string(subbed));
+  
 }
