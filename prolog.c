@@ -9,33 +9,35 @@
 #define MAX_ARGS 5
 
 
-struct Term * create_variable(int i);
-struct Term * create_functor(char* name, int arity);
 
-struct Term {
+
+
+typedef struct Term {
   int variable;
   struct Functor* functor;
-};
+} Term;
 
 
-struct Functor {
+typedef struct Functor {
   unsigned int arity;
   char* name;
-  struct Term * args[MAX_ARGS];
-};
+  Term * args[MAX_ARGS];
+} Functor;
 
-struct Term* substitute(struct Term* outer, int variable, struct Term* inner) {
+Term * create_variable(int i);
+Term * create_functor(char* name, int arity);
+Term* substitute(Term* outer, int variable, Term* inner) {
   if (outer->variable) {
     if (variable == outer->variable) {
       return inner;
     } else {
-      struct Term* new = malloc(sizeof (*new));
+      Term* new = malloc(sizeof (*new));
       new->variable = variable;
       new->functor = NULL;
       return new;
     }
   } else if (outer->functor) {
-    struct Term* new = malloc(sizeof (*new));
+    Term* new = malloc(sizeof (*new));
     new->variable = 0;
     new->functor = NULL;
     struct Functor* new_functor = malloc(sizeof (*new_functor));
@@ -43,7 +45,7 @@ struct Term* substitute(struct Term* outer, int variable, struct Term* inner) {
     new_functor->arity = outer->functor->arity;
     new->functor = new_functor;
     for (int i = 0; i < outer->functor->arity; i++) {
-      struct Term* subbed = substitute(outer->functor->args[i], variable, inner);
+      Term* subbed = substitute(outer->functor->args[i], variable, inner);
       (new_functor->args[i]) = subbed;
       
     }
@@ -52,7 +54,7 @@ struct Term* substitute(struct Term* outer, int variable, struct Term* inner) {
   return 0;
 }
 
-char* to_string(struct Term* term) {
+char* to_string(Term* term) {
   char* s = malloc(1000);
   if (term->variable) {
     sprintf(s, "%d", term->variable);
@@ -71,7 +73,7 @@ char* to_string(struct Term* term) {
   return s;
 }
 
-struct Term* parse_with_index(char * s, int start, int* end) {
+Term* parse_with_index(char * s, int start, int* end) {
   if (!s[start] || s[start] == ')') {
     return NULL;
   }
@@ -100,14 +102,14 @@ struct Term* parse_with_index(char * s, int start, int* end) {
     int length = strlen(name);
     char *new_string = malloc(length + 1);
     strcpy(new_string, &name[0]);
-    struct Term* new = create_functor(new_string,0);
+    Term* new = create_functor(new_string,0);
     int arity = 0;
     start = start + i;
     while (1) {
       if (s[start] == ')') {
         break;
       }
-      struct Term* child = parse_with_index(s, start, end);
+      Term* child = parse_with_index(s, start, end);
       new->functor->args[arity] = child;
       arity++;
       start = *end;
@@ -125,7 +127,7 @@ struct Term* parse_with_index(char * s, int start, int* end) {
 
 }
 
-struct Term* parse(char * s) {
+Term* parse(char * s) {
 
   int end;
   return parse_with_index(s, 0, &end);
@@ -133,17 +135,17 @@ struct Term* parse(char * s) {
 
 
 
-struct Term * create_variable(int i) {
+Term * create_variable(int i) {
   
-  struct Term *t1 = malloc(sizeof *t1);
+  Term *t1 = malloc(sizeof *t1);
   t1->variable = i;
   t1->functor = NULL;
 
   return t1;
 }
 
-struct Term * create_functor(char* name, int arity) {
-  struct Term *t3 = malloc(sizeof *t3);
+Term * create_functor(char* name, int arity) {
+  Term *t3 = malloc(sizeof *t3);
   t3->functor = malloc(sizeof (struct Functor));
   t3->functor->arity = arity;
   t3->functor->name = name;
@@ -153,14 +155,15 @@ struct Term * create_functor(char* name, int arity) {
 
 
 
-struct Term* unify(struct Term* a, struct Term* b) {
+Term* unify(Term* a, Term* b) {
+
   return 0;
 }
 
 int main() {
-  struct Term *t1 = create_variable(1);
-  struct Term *t2 = create_variable(2);
-  struct Term *t3 = create_functor("my_name", 2);
+  Term *t1 = create_variable(1);
+  Term *t2 = create_variable(2);
+  Term *t3 = create_functor("my_name", 2);
   t3->functor->args[0] = t1;
   t3->functor->args[1] = t1;
   
@@ -171,7 +174,7 @@ int main() {
 
 
   char* a = "12";
-  struct Term *a_term = parse(a);
+  Term *a_term = parse(a);
   printf("%s\n", to_string(a_term));
 
   
@@ -180,9 +183,13 @@ int main() {
   printf("%s\n", to_string(parse("hi(a(1),hello(3))")));
 
 
-  struct Term* sub_test = parse("hi(1)");
-  struct Term* var = parse("2");
-  struct Term* subbed = substitute(sub_test, 1, var);
+  Term* sub_test = parse("hi(1)");
+  Term* var = parse("2");
+  Term* subbed = substitute(sub_test, 1, var);
   printf("%s\n", to_string(subbed));
   
+  Term* sub_test2 = parse("hi(1, hello(1))");
+  Term* var2 = parse("hello(1)");
+  Term* subbed2 = substitute(sub_test2, 1, var2);
+  printf("%s\n", to_string(subbed2));
 }
