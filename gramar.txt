@@ -1,0 +1,20 @@
+
+
+program ::= clause*
+
+clause ::= struct :- struct-list "."
+		| struct .
+
+struct-list ::= struct 
+		| struct ";" struct-list
+		| struct "," struct-list
+
+struct ::= atom "(" (functor",")* functor")"
+
+functor ::= variable
+	    | functor "(" (functor ",")* functor ")"
+		| atom
+			
+				
+
+
