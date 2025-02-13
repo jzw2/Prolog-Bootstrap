@@ -75,8 +75,8 @@ union Exp* parse_exp(struct LexArray* stream, int *index) {
     }
     (*index)++;
   }
+  return ret;
   
-  return 0;
 }
 
 struct LexArray* lex(char *string) {
@@ -122,6 +122,19 @@ struct LexArray* lex(char *string) {
   return ret;
 }
 
+void Exp_print(union Exp* exp) {
+  int current = 0;
+  if (exp->type == Exp_Atom) {
+    printf("%s ", exp->atom.name);
+  } else if (exp->type == Exp_List) {
+    printf("(");
+    for (int i = 0; i < exp->list.length; i++) {
+      Exp_print(exp->list.exps[i]);
+    }
+    printf(")");
+  }
+}
+
 
 int main() {
   char *program1 = "(hi one ( two ( three(four) ) (   five  )))";
@@ -137,7 +150,8 @@ int main() {
 
   int index = 0;
   union Exp* p1_parse = parse_exp(program1_struct, &index);
-  printf("parsing");
+  printf("parsing\n");
+  Exp_print(p1_parse);
 
 
   
