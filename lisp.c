@@ -25,6 +25,59 @@ struct LexArray {
   struct Lex** data;
 };
 
+union Exp {
+  int type;
+  struct Atom {
+    int type;
+    char* name;
+  } atom;
+  struct List {
+    int type;
+    int length;
+    union Exp** exps;
+  } list;
+};
+const int Exp_Atom = 1;
+const int Exp_List = 2;
+
+struct Atom Atom_new(char* name) {
+  struct Atom ret;
+  ret.type = Exp_Atom;
+  ret.name = name;
+  return ret;
+}
+
+struct List List_new(union Exp** exps) {
+  struct List ret;
+  ret.type = Exp_List;
+  ret.length = 0;
+  ret.exps = exps;
+  return ret;
+}
+
+
+union Exp* parse_exp(struct LexArray* stream, int *index);
+union Exp* parse_list(struct LexArray* stream, int *index);
+
+union Exp* parse_exp(struct LexArray* stream, int *index) {
+  struct Lex* current = stream->data[*index];
+  union Exp* ret = malloc(sizeof *ret);
+  if (current->type == Lex_atom) {
+    ret->atom = Atom_new(current->atom);
+    (*index)++;
+  } else if (current->type == Lex_lparen) {
+    (*index)++;
+    ret->list = List_new(malloc((sizeof (void *)) * 1000)); // hope that's big enough lol
+    while(stream->data[*index]->type != Lex_rparen) {
+      union Exp* inner = parse_exp(stream, index);
+      ret->list.exps[ret->list.length] = inner;
+      ret->list.length++;
+    }
+    (*index)++;
+  }
+  
+  return 0;
+}
 
 struct LexArray* lex(char *string) {
   struct LexArray* ret = malloc(sizeof *ret);
@@ -56,9 +109,11 @@ struct LexArray* lex(char *string) {
 
 
     if (string[i] == '(') {
+      prev_non_atom = 1;
       ret->data[ret->length] = Lex_new(Lex_lparen, NULL);
       ret->length++;
     } else if (string[i] == ')') {
+      prev_non_atom = 1;
       ret->data[ret->length] = Lex_new(Lex_rparen, NULL);
       ret->length++;
     }
@@ -67,8 +122,9 @@ struct LexArray* lex(char *string) {
   return ret;
 }
 
+
 int main() {
-  char *program1 = "(hi one ( two ( three )))";
+  char *program1 = "(hi one ( two ( three(four) ) (   five  )))";
   struct LexArray* program1_struct = lex(program1);
   for (int i = 0; i < program1_struct->length; i++) {
     int type = program1_struct->data[i]->type;
@@ -78,6 +134,11 @@ int main() {
       
     }
   }
+
+  int index = 0;
+  union Exp* p1_parse = parse_exp(program1_struct, &index);
+  printf("parsing");
+
 
   
 }
