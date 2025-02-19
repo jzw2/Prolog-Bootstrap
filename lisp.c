@@ -33,8 +33,9 @@ union Exp {
   } atom;
   struct List {
     int type;
-    int length;
-    union Exp** exps;
+
+    union Exp* car;
+    union Exp* cdr;
   } list;
 };
 const int Exp_Atom = 1;
@@ -47,11 +48,11 @@ struct Atom Atom_new(char* name) {
   return ret;
 }
 
-struct List List_new(union Exp** exps) {
+struct List List_new(union Exp* car, union Exp* cdr) {
   struct List ret;
   ret.type = Exp_List;
-  ret.length = 0;
-  ret.exps = exps;
+  ret.cdr = cdr;
+  ret.car = car;
   return ret;
 }
 
@@ -67,11 +68,15 @@ union Exp* parse_exp(struct LexArray* stream, int *index) {
     (*index)++;
   } else if (current->type == Lex_lparen) {
     (*index)++;
-    ret->list = List_new(malloc((sizeof (void *)) * 1000)); // hope that's big enough lol
+    ret->list = List_new(NULL, NULL);
+    union Exp* current = ret;
     while(stream->data[*index]->type != Lex_rparen) {
       union Exp* inner = parse_exp(stream, index);
-      ret->list.exps[ret->list.length] = inner;
-      ret->list.length++;
+      current->list.car = inner;
+      union Exp* new = malloc(sizeof *new);
+      (new->list) = List_new(NULL, NULL);
+      current->list.cdr = new;
+      current = new;
     }
     (*index)++;
   }
@@ -128,8 +133,8 @@ void Exp_print(union Exp* exp) {
     printf("%s ", exp->atom.name);
   } else if (exp->type == Exp_List) {
     printf("(");
-    for (int i = 0; i < exp->list.length; i++) {
-      Exp_print(exp->list.exps[i]);
+    for (union Exp* e = exp; e->list.cdr; e = e->list.cdr) {
+      Exp_print(e->list.car);
     }
     printf(")");
   }
@@ -137,7 +142,7 @@ void Exp_print(union Exp* exp) {
 
 
 int main() {
-  char *program1 = "(hi one ( two ( three(four) ) (   five  )))";
+  char *program1 = "   (  hi one ( two ( three(four) ) (   five  )))    ";
   struct LexArray* program1_struct = lex(program1);
   for (int i = 0; i < program1_struct->length; i++) {
     int type = program1_struct->data[i]->type;
@@ -152,7 +157,5 @@ int main() {
   union Exp* p1_parse = parse_exp(program1_struct, &index);
   printf("parsing\n");
   Exp_print(p1_parse);
-
-
   
 }
