@@ -166,6 +166,32 @@ Exp* cons(Exp* s1, Exp* s2) {
   return ret;
 }
 
+Exp* eq(Exp* s1, Exp* s2) {
+  if (s1->type == Exp_Atom && s2->type == Exp_Atom) {
+    Exp* ret = malloc(sizeof *ret);
+    if (!strcmp(s1->atom.name, s2->atom.name)) {
+      ret->atom = Atom_new("true");
+    } else {
+      ret->atom = Atom_new("false");
+    }
+    return ret;
+  }
+
+  printf("Error in equality, don't compare lists");
+  return NULL;
+}
+
+Exp* nil(Exp* s1) {
+  Exp* ret = malloc(sizeof *ret);
+  if (s1->type == Exp_List && s1->list.car) {
+    ret->atom = Atom_new("false");
+  } else {
+    ret->atom = Atom_new("true");
+  }
+  return ret;
+}
+
+
 int main() {
   char *program1 = "(hi (1 2 3 1) )";
   struct LexArray* program1_struct = lex(program1);
