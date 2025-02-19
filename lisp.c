@@ -191,6 +191,29 @@ Exp* nil(Exp* s1) {
   return ret;
 }
 
+Exp* get_value(Exp* atom, Exp* env) {
+  if (atom->type == Exp_Atom && env->type== Exp_List) {
+    Exp* current = env;
+    while (current->list.car) {
+      Exp* left = car(current->list.car);
+      Exp* right = car(cdr(current->list.car));
+      if (!strcmp(left->atom.name, atom->atom.name)) {
+        return right;
+      }
+      current = current->list.cdr;
+    }
+  }
+  return NULL;
+}
+
+Exp* add_mapping(Exp* env, Exp* key, Exp* value) {
+  Exp* nil = malloc(sizeof *nil);
+  nil->type = Exp_List;
+  nil->list.car = NULL;
+  nil->list.cdr = NULL;
+  Exp* entry = cons(key, cons(value, nil));
+  return cons(entry, env);
+}
 
 int main() {
   char *program1 = "(hi (1 2 3 1) )";
