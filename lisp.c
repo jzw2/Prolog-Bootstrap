@@ -25,7 +25,7 @@ struct LexArray {
   struct Lex** data;
 };
 
-union Exp {
+typedef union Exp {
   int type;
   struct Atom {
     int type;
@@ -37,7 +37,7 @@ union Exp {
     union Exp* car;
     union Exp* cdr;
   } list;
-};
+} Exp;
 const int Exp_Atom = 1;
 const int Exp_List = 2;
 
@@ -141,21 +141,57 @@ void Exp_print(union Exp* exp) {
 }
 
 
+Exp* car(Exp* s) {
+  if (s->list.type == Exp_Atom) {
+    printf("Not a a list");
+    exit(1);
+  } 
+  return s->list.car;
+}
+
+Exp* cdr(Exp* s) {
+  if (s->list.type == Exp_Atom) {
+    printf("Not a a list");
+    exit(1);
+    // do evaluation
+  } 
+  return s->list.cdr;
+}
+
+Exp* cons(Exp* s1, Exp* s2) {
+  Exp* ret = malloc(sizeof *ret);
+  ret->type = Exp_List;
+  ret->list.car = s1;
+  ret->list.cdr = s2;
+  return ret;
+}
+
 int main() {
-  char *program1 = "   (  hi one ( two ( three(four) ) (   five  )))    ";
+  char *program1 = "(hi (1 2 3 1) )";
   struct LexArray* program1_struct = lex(program1);
-  for (int i = 0; i < program1_struct->length; i++) {
-    int type = program1_struct->data[i]->type;
-    printf("type: %d\n", type);
-    if (type == Lex_atom) {
-      printf("data: %s\n", program1_struct->data[i]->atom);
-      
-    }
-  }
 
   int index = 0;
   union Exp* p1_parse = parse_exp(program1_struct, &index);
+
+  
+  char *program2 = "(second(struct))";
+  struct LexArray* program2_struct = lex(program1);
+
+  int index2 = 0;
+  union Exp* p2_parse = parse_exp(program2_struct, &index2);
   printf("parsing\n");
   Exp_print(p1_parse);
+
   
+  printf("\ntesting car p1\n");
+  Exp_print(car(p1_parse));
+  printf("\ntesting cdr p1\n");
+  Exp_print(cdr(p1_parse));
+  printf("\ntesting car(cdr(p1)) p1\n");
+  Exp_print(car(cdr(p1_parse)));
+  
+  printf("\ntesting cons(p1, p2)\n");
+  Exp_print(cons(p1_parse, p2_parse));
+  printf("\ntesting car(car(p1)) p1\n");
+  Exp_print(car(car(p1_parse)));
 }
