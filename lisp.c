@@ -215,6 +215,48 @@ Exp* add_mapping(Exp* env, Exp* key, Exp* value) {
   return cons(entry, env);
 }
 
+Exp* eval(Exp* env, Exp* exp) {
+
+  if (exp->type == Exp_Atom) {
+    // hope it's not a number
+
+    Exp* value = get_value(exp, env);
+    return value;
+  } else if (exp->type == Exp_List) {
+    Exp* head = car(exp);
+    Exp* tail = cdr(exp);
+
+    if (head->type == Exp_Atom) {
+      char* name = head->atom.name;
+      if (!strcmp(name, "car")) {
+        return car(tail);
+      } else if (!strcmp(name, "cdr")) {
+        return cdr(tail);
+      } else if (!strcmp(name, "cons")) {
+        return cons(car(tail), cdr(tail));
+      } else {
+        // look it up in the environment
+        Exp *func = get_value(head, env);
+        Exp *app = tail;
+        // do application
+      }
+    } else if (head->type == Exp_List){
+      Exp* func = eval(car(head), cdr(tail));
+      Exp* app = tail;
+      //do applicatoin
+      
+    } else {
+      //bad
+    }
+
+  } else {
+    //bad
+  }
+  return NULL;
+
+  
+}
+
 int main() {
   char *program1 = "(hi (1 2 3 1) )";
   struct LexArray* program1_struct = lex(program1);
