@@ -251,9 +251,10 @@ Exp* eval(Exp* env, Exp* exp) {
     if (head->type == Exp_Atom) {
       char* name = head->atom.name;
       if (!strcmp(name, "car")) {
-        return car(eval(env, tail));
+        printf("It was car!!!\n");
+        return car(eval(env, car(tail)));
       } else if (!strcmp(name, "cdr")) {
-        return cdr(eval(env, tail));
+        return cdr(eval(env, car(tail)));
       } else if (!strcmp(name, "cons")) {
         return cons(eval(env, car(tail)), eval(env, car(cdr(tail))));
       } else {
@@ -295,13 +296,13 @@ int main() {
   union Exp* p1_parse = parse_exp(program1_struct, &index);
 
   
-  char *program2 = "(second(struct))";
-  struct LexArray* program2_struct = lex(program1);
+  char *program2 = "(cdr (cons 1 2))";
+  struct LexArray* program2_struct = lex(program2);
 
   int index2 = 0;
   union Exp* p2_parse = parse_exp(program2_struct, &index2);
   printf("parsing\n");
-  Exp_print(p1_parse);
+  Exp_print(p2_parse);
 
   char *program3 = "(cons 1 2)";
   struct LexArray* program3_struct = lex(program3);
@@ -325,7 +326,9 @@ int main() {
 
   printf("\neval(p3)\n");
   Exp_print(eval(empty_list(), p3_parse));
-  //printf("\neval(p1\n");
-  //Exp_print(eval(empty_list(), p1_parse));
+  printf("\neval(p1)\n");
+  Exp_print(eval(empty_list(), p1_parse));
 
+  printf("\neval(p2)\n");
+  Exp_print(eval(empty_list(), p2_parse));
 }
