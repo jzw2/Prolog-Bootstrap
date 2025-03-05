@@ -5,6 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+
+
 const int Lex_lparen = 1;
 const int Lex_rparen = 2;
 const int Lex_atom = 3;
@@ -41,6 +44,7 @@ typedef union Exp {
 const int Exp_Atom = 1;
 const int Exp_List = 2;
 
+Exp nil();
 struct Atom Atom_new(char* name) {
   struct Atom ret;
   ret.type = Exp_Atom;
@@ -78,6 +82,7 @@ union Exp* parse_exp(struct LexArray* stream, int *index) {
       current->list.cdr = new;
       current = new;
     }
+    *current = nil();
     (*index)++;
   }
   return ret;
@@ -133,9 +138,15 @@ void Exp_print(union Exp* exp) {
     printf("%s ", exp->atom.name);
   } else if (exp->type == Exp_List) {
     printf("(");
-    for (union Exp* e = exp; e->list.cdr; e = e->list.cdr) {
+    Exp* e = exp;
+    for (e = exp; e->type == Exp_List && e->list.cdr; e = e->list.cdr) {
       Exp_print(e->list.car);
     }
+    if (strcmp(e->atom.name, "nil")) {
+      printf(". %s", e->atom.name);
+    }
+
+
     printf(")");
   }
 }
@@ -181,13 +192,11 @@ Exp* eq(Exp* s1, Exp* s2) {
   return NULL;
 }
 
-Exp* nil(Exp* s1) {
-  Exp* ret = malloc(sizeof *ret);
-  if (s1->type == Exp_List && s1->list.car) {
-    ret->atom = Atom_new("false");
-  } else {
-    ret->atom = Atom_new("true");
-  }
+
+// the nil value
+Exp nil() {
+  Exp ret;
+  ret.atom = Atom_new("nil");
   return ret;
 }
 
@@ -216,49 +225,70 @@ Exp* add_mapping(Exp* env, Exp* key, Exp* value) {
 }
 
 Exp* eval(Exp* env, Exp* exp) {
+  if (!exp) {
+    return NULL;
+  }
 
   if (exp->type == Exp_Atom) {
     // hope it's not a number
 
     Exp* value = get_value(exp, env);
-    return value;
+
+      if (value) {
+        //found a vlue
+        printf("found value\n");
+        return value;
+      } else {
+        printf("evaluating to self\n");
+        return exp;
+      }
   } else if (exp->type == Exp_List) {
-    Exp* head = car(exp);
+    printf("getting head\n");
+    Exp* head = eval(env, car(exp));
+    printf("getting tail\n");
     Exp* tail = cdr(exp);
 
     if (head->type == Exp_Atom) {
       char* name = head->atom.name;
       if (!strcmp(name, "car")) {
-        return car(tail);
+        return car(eval(env, tail));
       } else if (!strcmp(name, "cdr")) {
-        return cdr(tail);
+        return cdr(eval(env, tail));
       } else if (!strcmp(name, "cons")) {
-        return cons(car(tail), cdr(tail));
+        return cons(eval(env, car(tail)), eval(env, car(cdr(tail))));
       } else {
         // look it up in the environment
-        Exp *func = get_value(head, env);
-        Exp *app = tail;
         // do application
+        printf("some funciton appicatoin\n");
       }
     } else if (head->type == Exp_List){
-      Exp* func = eval(car(head), cdr(tail));
-      Exp* app = tail;
       //do applicatoin
+      printf("somehow ended up with a list\n");
       
     } else {
       //bad
+      printf("very bad");
     }
 
   } else {
     //bad
+      printf("very bad");
   }
   return NULL;
+}
 
-  
+Exp* empty_list() {
+  Exp* nil = malloc(sizeof *nil);
+  nil->type = Exp_List;
+  nil->list.car = NULL;
+  nil->list.cdr = NULL;
+  return nil;
 }
 
 int main() {
-  char *program1 = "(hi (1 2 3 1) )";
+
+  
+  char *program1 = "(car (cons 1 2) )";
   struct LexArray* program1_struct = lex(program1);
 
   int index = 0;
@@ -273,6 +303,12 @@ int main() {
   printf("parsing\n");
   Exp_print(p1_parse);
 
+  char *program3 = "(cons 1 2)";
+  struct LexArray* program3_struct = lex(program3);
+  int index3 = 0;
+  union Exp* p3_parse = parse_exp(program3_struct, &index3);
+  printf("parsing p3\n");
+  Exp_print(p3_parse);
   
   printf("\ntesting car p1\n");
   Exp_print(car(p1_parse));
@@ -284,5 +320,12 @@ int main() {
   printf("\ntesting cons(p1, p2)\n");
   Exp_print(cons(p1_parse, p2_parse));
   printf("\ntesting car(car(p1)) p1\n");
-  Exp_print(car(car(p1_parse)));
+  // shoudl faile
+  // Exp_print(car(car(p1_parse)));
+
+  printf("\neval(p3)\n");
+  Exp_print(eval(empty_list(), p3_parse));
+  //printf("\neval(p1\n");
+  //Exp_print(eval(empty_list(), p1_parse));
+
 }
