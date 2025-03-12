@@ -154,7 +154,7 @@ void Exp_print(union Exp* exp) {
 
 Exp* car(Exp* s) {
   if (s->list.type == Exp_Atom) {
-    printf("Not a a list");
+    printf("%s is not a list", s->atom.name);
     exit(1);
   } 
   return s->list.car;
@@ -203,9 +203,9 @@ Exp nil() {
 Exp* get_value(Exp* atom, Exp* env) {
   if (atom->type == Exp_Atom && env->type== Exp_List) {
     Exp* current = env;
-    while (current->list.car) {
+    while (current->type == Exp_List && current->list.car) {
       Exp* left = car(current->list.car);
-      Exp* right = car(cdr(current->list.car));
+      Exp* right = cdr(current->list.car);
       if (!strcmp(left->atom.name, atom->atom.name)) {
         return right;
       }
@@ -232,6 +232,7 @@ Exp* eval(Exp* env, Exp* exp) {
   if (exp->type == Exp_Atom) {
     // hope it's not a number
 
+    printf("Evaluating atom\n");
     Exp* value = get_value(exp, env);
 
       if (value) {
@@ -239,11 +240,13 @@ Exp* eval(Exp* env, Exp* exp) {
         printf("found value\n");
         return value;
       } else {
-        printf("evaluating to self\n");
+        printf("evaluating %s to self\n", exp->atom.name);
         return exp;
       }
   } else if (exp->type == Exp_List) {
     printf("getting head\n");
+    Exp_print(exp);
+    printf("\n");
     Exp* head = eval(env, car(exp));
     printf("getting tail\n");
     Exp* tail = cdr(exp);
@@ -256,6 +259,7 @@ Exp* eval(Exp* env, Exp* exp) {
       } else if (!strcmp(name, "cdr")) {
         return cdr(eval(env, car(tail)));
       } else if (!strcmp(name, "cons")) {
+        printf("Found function cons!!!\n");
         return cons(eval(env, car(tail)), eval(env, car(cdr(tail))));
       } else {
         // look it up in the environment
@@ -279,11 +283,9 @@ Exp* eval(Exp* env, Exp* exp) {
 }
 
 Exp* empty_list() {
-  Exp* nil = malloc(sizeof *nil);
-  nil->type = Exp_List;
-  nil->list.car = NULL;
-  nil->list.cdr = NULL;
-  return nil;
+  Exp* nilp = malloc(sizeof *nil);
+  *nilp = nil();
+  return nilp;
 }
 
 int main() {
@@ -331,4 +333,30 @@ int main() {
 
   printf("\neval(p2)\n");
   Exp_print(eval(empty_list(), p2_parse));
+
+
+  
+  char *program4 = "(cons x 2) ";
+  struct LexArray* program4_struct = lex(program4);
+
+   index = 0;
+  union Exp* p4_parse = parse_exp(program4_struct, &index);
+  printf("\neval(p4)\n");
+  Exp_print(p4_parse);
+  printf("\n\n");
+
+  Exp x;
+  x.atom =  Atom_new("x");
+
+  Exp three;
+  three.atom = Atom_new("3");
+
+  Exp pair;
+  pair.list = List_new(&x, &three);
+
+  Exp env;
+  env.list = List_new(&pair, empty_list());
+
+  
+  Exp_print(eval(&env, p4_parse));
 }
