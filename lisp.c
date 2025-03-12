@@ -271,6 +271,13 @@ Exp* eval(Exp* env, Exp* exp) {
         return cons(eval(env, car(tail)), eval(env, car(cdr(tail))));
       } else if (!strcmp(name, "quote")) {
         return car(tail);
+      } else if (!strcmp(name, "if")) {
+        Exp* evaluated = eval(env, car(tail));
+        if (evaluated->type == Exp_Atom && !strcmp(evaluated->atom.name, "nil")) {
+          return eval(env, car(cdr(cdr(tail))));
+        } else {
+          return eval(env, car(cdr(tail)));
+        }
       } else {
         // look it up in the environment
         // do application
@@ -305,7 +312,8 @@ char* tests[] = {
   "(cons x 2)",
   "x",
   "(quote (a b c))",
-  //"(if nil x 2)",
+  "(if nil x 2)",
+  "(if 5 x 2)",
   "finaltest"
 };
 
