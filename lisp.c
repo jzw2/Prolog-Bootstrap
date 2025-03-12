@@ -129,6 +129,14 @@ struct LexArray* lex(char *string) {
     }
   }
   
+    if (!prev_non_atom) {
+      int length1 = length - token_start;
+      char * token  =  malloc(length1 + 1);
+     memcpy(token, &string[token_start], length1);
+     token[length1] = '\0';
+      ret->data[ret->length] = Lex_new(Lex_atom, token);
+      ret->length++;
+    }
   return ret;
 }
 
@@ -261,6 +269,8 @@ Exp* eval(Exp* env, Exp* exp) {
       } else if (!strcmp(name, "cons")) {
         printf("Found function cons!!!\n");
         return cons(eval(env, car(tail)), eval(env, car(cdr(tail))));
+      } else if (!strcmp(name, "quote")) {
+        return car(tail);
       } else {
         // look it up in the environment
         // do application
@@ -292,8 +302,11 @@ char* tests[] = {
   "(car (cons 1 2) )",
   "(cdr (cons 1 2))",
   "(cons 1 2)",
-  "(cons x 2)"
-
+  "(cons x 2)",
+  "x",
+  "(quote (a b c))",
+  //"(if nil x 2)",
+  "finaltest"
 };
 
 int main() {
@@ -312,9 +325,10 @@ int main() {
   env.list = List_new(&pair, empty_list());
   for (int i = 0; i < sizeof(tests) / sizeof (char *); i++) {
     index = 0;
-    printf("Test #%d", i);
+    printf("\nTest #%d\n", i);
     struct LexArray* program_struct = lex(tests[i]);
     union Exp* parse = parse_exp(program_struct, &index);
     Exp_print(eval(&env, parse));
+    printf("\n");
   }
 }
