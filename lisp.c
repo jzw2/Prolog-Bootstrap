@@ -288,63 +288,17 @@ Exp* empty_list() {
   return nilp;
 }
 
+char* tests[] = {
+  "(car (cons 1 2) )",
+  "(cdr (cons 1 2))",
+  "(cons 1 2)",
+  "(cons x 2)"
+
+};
+
 int main() {
 
-  
-  char *program1 = "(car (cons 1 2) )";
-  struct LexArray* program1_struct = lex(program1);
-
   int index = 0;
-  union Exp* p1_parse = parse_exp(program1_struct, &index);
-
-  
-  char *program2 = "(cdr (cons 1 2))";
-  struct LexArray* program2_struct = lex(program2);
-
-  int index2 = 0;
-  union Exp* p2_parse = parse_exp(program2_struct, &index2);
-  printf("parsing\n");
-  Exp_print(p2_parse);
-
-  char *program3 = "(cons 1 2)";
-  struct LexArray* program3_struct = lex(program3);
-  int index3 = 0;
-  union Exp* p3_parse = parse_exp(program3_struct, &index3);
-  printf("parsing p3\n");
-  Exp_print(p3_parse);
-  
-  printf("\ntesting car p1\n");
-  Exp_print(car(p1_parse));
-  printf("\ntesting cdr p1\n");
-  Exp_print(cdr(p1_parse));
-  printf("\ntesting car(cdr(p1)) p1\n");
-  Exp_print(car(cdr(p1_parse)));
-  
-  printf("\ntesting cons(p1, p2)\n");
-  Exp_print(cons(p1_parse, p2_parse));
-  printf("\ntesting car(car(p1)) p1\n");
-  // shoudl faile
-  // Exp_print(car(car(p1_parse)));
-
-  printf("\neval(p3)\n");
-  Exp_print(eval(empty_list(), p3_parse));
-  printf("\neval(p1)\n");
-  Exp_print(eval(empty_list(), p1_parse));
-
-  printf("\neval(p2)\n");
-  Exp_print(eval(empty_list(), p2_parse));
-
-
-  
-  char *program4 = "(cons x 2) ";
-  struct LexArray* program4_struct = lex(program4);
-
-   index = 0;
-  union Exp* p4_parse = parse_exp(program4_struct, &index);
-  printf("\neval(p4)\n");
-  Exp_print(p4_parse);
-  printf("\n\n");
-
   Exp x;
   x.atom =  Atom_new("x");
 
@@ -356,7 +310,11 @@ int main() {
 
   Exp env;
   env.list = List_new(&pair, empty_list());
-
-  
-  Exp_print(eval(&env, p4_parse));
+  for (int i = 0; i < sizeof(tests) / sizeof (char *); i++) {
+    index = 0;
+    printf("Test #%d", i);
+    struct LexArray* program_struct = lex(tests[i]);
+    union Exp* parse = parse_exp(program_struct, &index);
+    Exp_print(eval(&env, parse));
+  }
 }
