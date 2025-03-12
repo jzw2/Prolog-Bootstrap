@@ -232,7 +232,7 @@ Exp* add_mapping(Exp* env, Exp* key, Exp* value) {
   return cons(entry, env);
 }
 
-Exp* eval(Exp* env, Exp* exp) {
+Exp* eval(Exp** env, Exp* exp) {
   if (!exp) {
     return NULL;
   }
@@ -241,7 +241,7 @@ Exp* eval(Exp* env, Exp* exp) {
     // hope it's not a number
 
     printf("Evaluating atom\n");
-    Exp* value = get_value(exp, env);
+    Exp* value = get_value(exp, *env);
 
       if (value) {
         //found a vlue
@@ -277,6 +277,20 @@ Exp* eval(Exp* env, Exp* exp) {
           return eval(env, car(cdr(cdr(tail))));
         } else {
           return eval(env, car(cdr(tail)));
+        }
+      } else if (!strcmp(name, "def")) {
+        Exp* var = car(tail);
+        if (var->type == Exp_Atom) {
+          Exp* rhs_val = eval(env, car(cdr(tail)));
+          Exp* pair = malloc(sizeof (*pair));
+          pair->list = List_new(var, rhs_val);
+
+          Exp* old_entry = *env;
+          *env = malloc(sizeof **env);
+          (*env)->list = List_new(pair, old_entry);
+          return eval(env, var);
+        } else {
+          printf("Can't assign a list\n");
         }
       } else {
         // look it up in the environment
@@ -314,6 +328,8 @@ char* tests[] = {
   "(quote (a b c))",
   "(if nil x 2)",
   "(if 5 x 2)",
+  "(def y 2)",
+  "y",
   "finaltest"
 };
 
@@ -331,12 +347,20 @@ int main() {
 
   Exp env;
   env.list = List_new(&pair, empty_list());
+  Exp *envp = &env;
   for (int i = 0; i < sizeof(tests) / sizeof (char *); i++) {
     index = 0;
     printf("\nTest #%d\n", i);
+    printf("\nEnv is currently\n");
+    Exp_print(envp);
+    printf("\n");
+
     struct LexArray* program_struct = lex(tests[i]);
     union Exp* parse = parse_exp(program_struct, &index);
-    Exp_print(eval(&env, parse));
+    Exp_print(eval(&envp, parse));
+    printf("\n");
+    printf("\nEnv is currently\n");
+    Exp_print(envp);
     printf("\n");
   }
 }
