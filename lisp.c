@@ -219,7 +219,7 @@ Exp* get_value(Exp* atom, Exp* env) {
     Exp* current = env;
     while (current->type == Exp_List && current->list.car) {
       Exp* left = car(current->list.car);
-      Exp* right = cdr(current->list.car);
+      Exp* right = car(cdr(current->list.car));
       if (!strcmp(left->atom.name, atom->atom.name)) {
         return right;
       }
@@ -230,12 +230,15 @@ Exp* get_value(Exp* atom, Exp* env) {
 }
 
 Exp* add_mapping(Exp* env, Exp* key, Exp* value) {
-  Exp* entry = cons(key, value);
+  Exp* new_nil = malloc(sizeof *new_nil);
+  *new_nil = nil();
+  Exp* entry = cons(key, cons(value, new_nil));
   return cons(entry, env);
 }
 
 Exp* eval(Exp** env, Exp* exp);
 // takes the start and keeps going linking up the new environments with each other
+// I don't know why I wrote this function it doesn't make any sense
 Exp* eval_list(Exp** env, Exp* list) {
   Exp* ret = malloc(sizeof(*ret));
   *ret = nil();
@@ -257,23 +260,23 @@ Exp* eval(Exp** env, Exp* exp) {
   if (exp->type == Exp_Atom) {
     // hope it's not a number
 
-    printf("Evaluating atom\n");
+    // printf("Evaluating atom\n");
     Exp* value = get_value(exp, *env);
 
       if (value) {
         //found a vlue
-        printf("found value\n");
+        // printf("found value\n");
         return value;
       } else {
-        printf("evaluating %s to self\n", exp->atom.name);
+        // printf("evaluating %s to self\n", exp->atom.name);
         return exp;
       }
   } else if (exp->type == Exp_List) {
-    printf("getting head\n");
-    Exp_print(exp);
+    // printf("getting head\n");
+    //Exp_print(exp);
     printf("\n");
     Exp* head = eval(env, car(exp));
-    printf("getting tail\n");
+    // printf("getting tail\n");
     Exp* tail = cdr(exp);
 
     if (head->type == Exp_Atom) {
@@ -299,12 +302,7 @@ Exp* eval(Exp** env, Exp* exp) {
         Exp* var = car(tail);
         if (var->type == Exp_Atom) {
           Exp* rhs_val = eval(env, car(cdr(tail)));
-          Exp* pair = malloc(sizeof (*pair));
-          pair->list = List_new(var, rhs_val);
-
-          Exp* old_entry = *env;
-          *env = malloc(sizeof **env);
-          (*env)->list = List_new(pair, old_entry);
+          *env = add_mapping(*env, var, rhs_val);
           return eval(env, var);
         } else {
           printf("Can't assign a list\n");
@@ -329,35 +327,25 @@ Exp* eval(Exp** env, Exp* exp) {
       Exp* param = car(lambda_tail);
       Exp* param_tail = cdr(lambda_tail);
       Exp* body = car(param_tail);
-      Exp* replaced = eval_list(env, tail);
+      // Exp* replaced = eval_list(env, tail);
+      Exp* replaced = eval(env, car(tail));
 
       if (param->type == Exp_Atom ) {
-        //have to reverse the list
-        Exp* ret = malloc(sizeof *ret);
-        *ret = nil();
-        //modify in place
-        for (Exp* current = replaced; current && current->type == Exp_List; ) {
-          Exp* temp = cdr(current); //save the current
-          current->list.cdr = ret; //modify it so that it is now on the the return stack
-          ret = current;
-          current = temp;
-        }
-        //leak the last nil
-	printf("\n");
-	Exp_print(ret);
-	printf("\n");
-
-	printf("Old Env\n");
-	Exp_print(*env);
-	printf("\n");
+      	printf("Old Env\n");
+      	Exp_print(*env);
+      	printf("\n");
         //bind the list to the new variable
-        Exp* new_env = add_mapping(*env, param, ret);
-	printf("New Env\n");
-	Exp_print(new_env);
-	printf("\n");
+        Exp* new_env = add_mapping(*env, param, replaced);
+      	printf("New Env\n");
+      	Exp_print(new_env);
+      	printf("\n");
         //lets hope they don't define somethig new here
-        return eval(&new_env, body);
-      } else if (param->type == Exp_List) {
+        if (cdr(param_tail)->type != Exp_Atom || strcmp(cdr(param_tail)->atom.name, "nil")) {
+          printf("lambda body is more than one element, others wont be evalated\n");
+        }
+
+        return eval(&new_env, body); //might have to chain the envs
+     } else if (param->type == Exp_List) {
         // pattern match on the list
         
         printf("Didn't implement pattern matching yet\n");
@@ -391,8 +379,9 @@ Exp* empty_list() {
 }
 
 char* tests[] = {
-  "(car (cons 1 2) )",
+  "(car (cons 1 2))",
   "(cdr (cons 1 2))",
+  "(def x 59)",
   "(cons 1 2)",
   "(cons x 2)",
   "x",
@@ -402,23 +391,16 @@ char* tests[] = {
   "(def y 2)",
   "y",
   "((lambda z z) 1)",
+  "(((lambda x (lambda y x)) 5) 1)",
   "finaltest"
 };
 
 int main() {
 
   int index = 0;
-  Exp x;
-  x.atom =  Atom_new("x");
-
-  Exp three;
-  three.atom = Atom_new("3");
-
-  Exp pair;
-  pair.list = List_new(&x, &three);
 
   Exp env;
-  env.list = List_new(&pair, empty_list());
+  env = *empty_list();
   Exp *envp = &env;
   for (int i = 0; i < sizeof(tests) / sizeof (char *); i++) {
     index = 0;
