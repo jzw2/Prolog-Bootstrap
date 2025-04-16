@@ -150,8 +150,14 @@ void Exp_print(union Exp* exp) {
     for (e = exp; e->type == Exp_List && e->list.cdr; e = e->list.cdr) {
       Exp_print(e->list.car);
     }
-    if (strcmp(e->atom.name, "nil")) {
+    if (e->type != Exp_Atom) {
+      // printf("Somehow ended up with a non atom type in the end");
+      printf(". ");
+      
+
+    } else if (e->type == Exp_Atom && strcmp(e->atom.name, "nil")) {
       printf(". %s", e->atom.name);
+    } else {
     }
 
 
@@ -224,12 +230,23 @@ Exp* get_value(Exp* atom, Exp* env) {
 }
 
 Exp* add_mapping(Exp* env, Exp* key, Exp* value) {
-  Exp* nil = malloc(sizeof *nil);
-  nil->type = Exp_List;
-  nil->list.car = NULL;
-  nil->list.cdr = NULL;
-  Exp* entry = cons(key, cons(value, nil));
+  Exp* entry = cons(key, value);
   return cons(entry, env);
+}
+
+Exp* eval(Exp** env, Exp* exp);
+// takes the start and keeps going linking up the new environments with each other
+Exp* eval_list(Exp** env, Exp* list) {
+  Exp* ret = malloc(sizeof(*ret));
+  *ret = nil();
+  for (Exp* current_list = list; current_list && current_list->type == Exp_List; current_list = cdr(current_list)) {
+    Exp* evaluated = eval(env, car(current_list));
+    Exp* new_list = malloc(sizeof(*new_list));
+    new_list->list = List_new(evaluated, ret);
+    ret = new_list;
+  }
+  // in reverse order
+  return ret;
 }
 
 Exp* eval(Exp** env, Exp* exp) {
@@ -292,6 +309,8 @@ Exp* eval(Exp** env, Exp* exp) {
         } else {
           printf("Can't assign a list\n");
         }
+      } else if (!strcmp(name, "lambda")) {
+        return exp;
       } else {
         // look it up in the environment
         // do application
@@ -299,6 +318,58 @@ Exp* eval(Exp** env, Exp* exp) {
       }
     } else if (head->type == Exp_List){
       //do applicatoin
+      // assuming its a lambda
+      Exp* lambda_head = car(head);
+      if (lambda_head->type != Exp_Atom || strcmp(lambda_head->atom.name, "lambda")) {
+        printf("Very bad, evaluated list, but was not a lambda\n");
+        exit(1);
+      }
+
+      Exp* lambda_tail = cdr(head);
+      Exp* param = car(lambda_tail);
+      Exp* param_tail = cdr(lambda_tail);
+      Exp* body = car(param_tail);
+      Exp* replaced = eval_list(env, tail);
+
+      if (param->type == Exp_Atom ) {
+        //have to reverse the list
+        Exp* ret = malloc(sizeof *ret);
+        *ret = nil();
+        //modify in place
+        for (Exp* current = replaced; current && current->type == Exp_List; ) {
+          Exp* temp = cdr(current); //save the current
+          current->list.cdr = ret; //modify it so that it is now on the the return stack
+          ret = current;
+          current = temp;
+        }
+        //leak the last nil
+	printf("\n");
+	Exp_print(ret);
+	printf("\n");
+
+	printf("Old Env\n");
+	Exp_print(*env);
+	printf("\n");
+        //bind the list to the new variable
+        Exp* new_env = add_mapping(*env, param, ret);
+	printf("New Env\n");
+	Exp_print(new_env);
+	printf("\n");
+        //lets hope they don't define somethig new here
+        return eval(&new_env, body);
+      } else if (param->type == Exp_List) {
+        // pattern match on the list
+        
+        printf("Didn't implement pattern matching yet\n");
+        exit(1);
+      } else {
+        printf("Very bad\n");
+        exit(1);
+        
+      }
+      //pattern match with the argument list
+
+
       printf("somehow ended up with a list\n");
       
     } else {
@@ -330,6 +401,7 @@ char* tests[] = {
   "(if 5 x 2)",
   "(def y 2)",
   "y",
+  "((lambda z z) 1)",
   "finaltest"
 };
 
