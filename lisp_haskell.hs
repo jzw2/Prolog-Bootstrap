@@ -10,6 +10,8 @@ data Exp = Atom String | List Exp Exp deriving (Show)
 
 type Parser = StateT String Maybe
 
+
+
 parseChar :: Parser Char
 -- parseChar = StateT f
 --   where
@@ -99,11 +101,13 @@ type Env = [(String, Exp)]
 envLookup :: Env -> String -> Maybe Exp
 envLookup = flip lookup
 
-readEval :: String -> Env -> Either String (Exp, Env)
-readEval str env =
-  case parse str of
-    Just parsed -> runStateT (eval parsed) env
-    Nothing -> Left "Parse Fail"
+readEval :: String -> StateT Env (Either String) Exp
+readEval str = case parse str of 
+  Just x -> return x
+  Nothing -> lift (Left "parse error") 
+
+  
+  
 
 repl :: Env -> IO Env
 repl env = do
@@ -111,8 +115,22 @@ repl env = do
   let Just p = parse input
   let output = eval p
   let Right (evalOutput, newEnv) = runStateT output env
-  print $ printExp $ evalOutput
+  print $ printExp evalOutput
   repl newEnv
+
+patternMatch :: Exp -> Exp -> StateT Env (Either String) Env
+patternMatch (Atom "Nil") (Atom "Nil") = get
+patternMatch (Atom v) exp = do
+  env <- get
+  return ((v, exp):env)
+patternMatch (List patternX patternXs) (List listX listXs) = do
+  e1 <- patternMatch patternX patternXs
+  put e1
+  patternMatch patternXs listXs
+patternMatch pattern values = lift $ Left $ "Cannot match " ++ printExp pattern ++ "with " ++ printExp values
+  
+  
+
 
 eval :: Exp -> StateT Env (Either String) Exp
 eval exp = case exp of
@@ -128,12 +146,26 @@ eval exp = case exp of
     e1 <- eval arg1
     e2 <- eval arg2
     pure $ cons e1 e2
-  List (Atom "cons") (_) -> lift . Left $ "Arguments for cons incorrect"
+  List (Atom "cons") _ -> lift . Left $ "Arguments for cons incorrect"
   List (Atom "cdr") (List arg (Atom "Nil")) -> do
     e1 <- eval arg
     lift (cdr e1)
-  List (Atom "cdr") (_) -> lift . Left $ "Incorrect arguments for cdr"
+  List (Atom "cdr") _ -> lift . Left $ "Incorrect arguments for cdr"
   List (Atom "def") (List (Atom var) body) -> do
     env <- get
     put ((var, body) : env)
     return body
+  List (Atom "lambda") rest -> return (List (Atom "lambda") rest)
+  List (List (Atom "lambda") (List pattern body)) outer -> do
+    eOuter <- eval outer
+    patternMatch pattern body
+    get <- undefined
+    undefined
+    
+programs :: [(String, String)]
+programs = [("(car (cons 1 2))", "1"), ("(cdr (cons 1 2))", "2")]
+
+
+
+runMultiple :: [String] -> StateT Env (Either String) [Exp]
+runMultiple = mapM (\x -> readEval x >>= eval)
