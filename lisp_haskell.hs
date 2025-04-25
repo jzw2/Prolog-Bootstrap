@@ -5,8 +5,9 @@ import Control.Monad.Trans.State.Lazy
 import Data.Char
 import Data.List
 import Data.Maybe
+import Debug.Trace
 
-data Exp = Lambda Env Exp | Atom String | List Exp Exp deriving (Show)
+data Exp = Lambda Env Exp | Atom String | List Exp Exp deriving (Show, Eq)
 
 type Parser = StateT String Maybe
 
@@ -76,7 +77,7 @@ parseAtom = do
 
 printExp :: Exp -> String
 printExp (Atom s) = s
-printExp (Lambda _ _) = "<<lambda exp>>"
+printExp (Lambda _ body) = "<<" ++ printExp body ++ ">>"
 printExp (List l r) =
   let printList (Atom "Nil") = ""
       printList (Atom s) = " . " ++ s
@@ -101,7 +102,7 @@ type Env = [(String, Int)]
 
 envLookup :: (Env,Store) -> String -> Maybe Exp
 envLookup (env, store) string = do
-  index <- lookup string env
+  index <- lookup string (env)
   listToMaybe $ drop index store
 
 type Store = [Exp]
@@ -126,18 +127,35 @@ readEval str = case parse str of
 --   print $ printExp evalOutput
 --   repl newEnv
 
-patternMatch :: Exp -> Exp -> ProgramState Env
-patternMatch = undefined
--- patternMatch (Atom "Nil") (Atom "Nil") = get
--- patternMatch (Atom v) exp = do
---   env <- get
---   return ((v, exp):env)
--- patternMatch (List patternX patternXs) (List listX listXs) = do
---   e1 <- patternMatch patternX patternXs
---   patternMatch patternXs listXs
--- patternMatch pattern values = lift $ Left $ "Cannot match " ++ printExp pattern ++ "with " ++ printExp values
+addBinding :: String -> Exp -> ProgramState ()
+addBinding var exp = do
+    (env, store) <- get
+    put ((var, length store) : env, store ++ [exp])
+    return ()
+
+-- also evaluates the right argument
+patternMatch :: Exp -> Exp -> ProgramState (Env, Store)
+patternMatch x y | trace ("matching " ++ printExp x ++ " to " ++ printExp y) False = undefined
+patternMatch (Atom "Nil") (Atom "Nil") = get
+patternMatch (Atom v) exp = do
+  eExp <- evalList exp
+  addBinding v eExp
+  get
+patternMatch (List (Atom v) patternXs) (List exp listXs) = do
+  eExp <- eval exp
+  addBinding v exp
+  patternMatch patternXs listXs
+patternMatch pattern values = lift $ Left $ "Cannot match " ++ printExp pattern ++ "with " ++ printExp values
   
+-- evaluate one after the other
+evalList :: Exp -> ProgramState Exp
+evalList a | trace ("evallist: " ++ printExp a) False = eval a
+evalList (List a (Atom "Nil")) = eval a
+evalList (List a (Atom _)) = lift $ Left "bad lambda"
+evalList (List a b) = eval a >> eval b
+
 eval :: Exp -> ProgramState Exp
+eval exp | trace (printExp exp) False = undefined
 eval exp = case exp of
   Atom x -> do
     env <- get
@@ -157,18 +175,31 @@ eval exp = case exp of
     lift (cdr e1)
   List (Atom "cdr") _ -> lift . Left $ "Incorrect arguments for cdr"
   List (Atom "def") (List (Atom var) (List body (Atom "Nil"))) -> do
-    (env, store) <- get
-    put ((var, length store) : env, store ++ [body])
+    addBinding var body
     return body
   List (Atom "def") _ -> lift $ Left "Incorrect arguments for def"
   (List (Atom "lambda") body) -> do
     (env, _) <- get
     return $ Lambda env body
-  List (Lambda oldEnv (List pattern body)) outer -> do
-    eOuter <- eval outer
-    matchedEnv <- patternMatch pattern body
-    get <- undefined
-    undefined
+  List (Lambda lamEnv (List pattern body)) outer | trace ("evaluating " ++ printExp body ++ " applied to " ++ printExp outer) False -> undefined
+  List (Lambda lamEnv (List pattern body)) outer -> do
+    (env, store) <- get
+    trace ("old envs" ++ show (env, store)) $ return ()
+    put (lamEnv, store)
+    trace ("lam envs" ++ show (lamEnv, store)) return ()
+    patternMatch pattern outer
+    ret <- evalList body
+    (_, newStore) <- get
+    put (env, newStore)
+    return ret
+  List left right -> do
+    eLeft <- eval left
+    if left == eLeft 
+      then lift . Left $ "Cannot further simplify " ++ printExp left
+      else eval (List eLeft right)
+
+  other -> lift $ Left $ "unable to evaluate " ++ printExp other
+
 programs :: [(String, String)]
 programs = 
   [
@@ -176,7 +207,9 @@ programs =
    , ("(cdr (cons 1 2))", "2")
    , ("(def x 12)", "12")
    , ("x", "12")
-   , ("(((lambda x (lambda y x)) 1) 2)", "1")
+    , ("((lambda x 3) 2)", "3")
+    , ("((lambda x x) 2)", "2")
+    , ("(((lambda z (lambda y z)) 3) 2)", "3")
   ]
 runMultiple :: [String] -> ProgramState [Exp]
 runMultiple = mapM (readEval >=> eval)
