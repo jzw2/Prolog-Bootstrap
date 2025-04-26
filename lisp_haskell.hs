@@ -6,6 +6,7 @@ import Data.Char
 import Data.List
 import Data.Maybe
 import Debug.Trace
+import System.IO
 
 data Exp = Lambda Env Exp | Atom String | List Exp Exp deriving (Show, Eq)
 
@@ -67,7 +68,7 @@ parseList =
 validAtomChar :: Parser Char
 validAtomChar = do
   c <- parseChar
-  guard (isAlphaNum c)
+  guard (isAlphaNum c || c `elem` "!@#$%^&*")
   pure c
 
 parseAtom :: Parser String
@@ -102,20 +103,20 @@ type Env = [(String, Int)]
 
 envLookup :: (Env,Store) -> String -> Maybe Exp
 envLookup (env, store) string = do
-  index <- lookup string (env)
+  index <- lookup string env
   listToMaybe $ drop index store
 
 type Store = [Exp]
 
-type ProgramState = StateT (Env, Store) (Either String) 
+type ProgramState = StateT (Env, Store) (Either String)
 
 readEval :: String -> ProgramState Exp
-readEval str = case parse str of 
+readEval str = case parse str of
   Just x -> return x
-  Nothing -> lift (Left "parse error") 
+  Nothing -> lift (Left "parse error")
 
-  
-  
+
+
 
 
 addBinding :: String -> Exp -> ProgramState ()
@@ -126,24 +127,26 @@ addBinding var exp = do
 
 repl :: (Env, Store) -> IO ()
 repl oldState = do
+  putStr "> "
+  hFlush stdout
   input <- getLine
   case runStateT ((readEval >=> eval) input) oldState of
     Left error -> do
       putStrLn $ "Error: " ++  error
       repl oldState
     Right (output, state) -> do
-      putStrLn $ printExp output 
+      putStrLn $ printExp output
       repl state
 
 main :: IO ()
 main = repl ([], [])
-  
+
 
 
 
 -- also evaluates the right argument
 patternMatch :: Exp -> Exp -> ProgramState (Env, Store)
-patternMatch x y | trace ("matching " ++ printExp x ++ " to " ++ printExp y) False = undefined
+-- patternMatch x y | trace ("matching " ++ printExp x ++ " to " ++ printExp y) False = undefined
 patternMatch (Atom "Nil") (Atom "Nil") = get
 patternMatch (Atom v) exp = do
   eExp <- evalList exp
@@ -154,16 +157,16 @@ patternMatch (List (Atom v) patternXs) (List exp listXs) = do
   addBinding v exp
   patternMatch patternXs listXs
 patternMatch pattern values = lift $ Left $ "Cannot match " ++ printExp pattern ++ "with " ++ printExp values
-  
+
 -- evaluate one after the other
 evalList :: Exp -> ProgramState Exp
-evalList a | trace ("evallist: " ++ printExp a) False = eval a
+-- evalList a | trace ("evallist: " ++ printExp a) False = eval a
 evalList (List a (Atom "Nil")) = eval a
 evalList (List a (Atom _)) = lift $ Left "bad lambda"
-evalList (List a b) = eval a >> eval b
+evalList (List a b) = eval a >> evalList b
 
 eval :: Exp -> ProgramState Exp
-eval exp | trace (printExp exp) False = undefined
+-- eval exp | trace (printExp exp) False = undefined
 eval exp = case exp of
   Atom x -> do
     env <- get
@@ -189,12 +192,12 @@ eval exp = case exp of
   (List (Atom "lambda") body) -> do
     (env, _) <- get
     return $ Lambda env body
-  List (Lambda lamEnv (List pattern body)) outer | trace ("evaluating " ++ printExp body ++ " applied to " ++ printExp outer) False -> undefined
+  -- List (Lambda lamEnv (List pattern body)) outer | trace ("evaluating " ++ printExp body ++ " applied to " ++ printExp outer) False -> undefined
   List (Lambda lamEnv (List pattern body)) outer -> do
     (env, store) <- get
-    trace ("old envs" ++ show (env, store)) $ return ()
+    -- trace ("old envs" ++ show (env, store)) $ return ()
     put (lamEnv, store)
-    trace ("lam envs" ++ show (lamEnv, store)) return ()
+    -- trace ("lam envs" ++ show (lamEnv, store)) return ()
     patternMatch pattern outer
     ret <- evalList body
     (_, newStore) <- get
@@ -202,14 +205,14 @@ eval exp = case exp of
     return ret
   List left right -> do
     eLeft <- eval left
-    if left == eLeft 
+    if left == eLeft
       then lift . Left $ "Cannot further simplify " ++ printExp left
       else eval (List eLeft right)
 
   other -> lift $ Left $ "unable to evaluate " ++ printExp other
 
 programs :: [(String, String)]
-programs = 
+programs =
   [
    ("(car (cons 1 2))", "1")
    , ("(cdr (cons 1 2))", "2")
