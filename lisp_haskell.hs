@@ -117,21 +117,29 @@ readEval str = case parse str of
   
   
 
--- repl :: Env -> IO Env
--- repl env = do
---   input <- readLn
---   case runState
---   let Just p = parse input
---   let output = eval p
---   let Right (evalOutput, newEnv) = runStateT output env
---   print $ printExp evalOutput
---   repl newEnv
 
 addBinding :: String -> Exp -> ProgramState ()
 addBinding var exp = do
     (env, store) <- get
     put ((var, length store) : env, store ++ [exp])
     return ()
+
+repl :: (Env, Store) -> IO ()
+repl oldState = do
+  input <- getLine
+  case runStateT ((readEval >=> eval) input) oldState of
+    Left error -> do
+      putStrLn $ "Error: " ++  error
+      repl oldState
+    Right (output, state) -> do
+      putStrLn $ printExp output 
+      repl state
+
+main :: IO ()
+main = repl ([], [])
+  
+
+
 
 -- also evaluates the right argument
 patternMatch :: Exp -> Exp -> ProgramState (Env, Store)
@@ -219,3 +227,4 @@ compareTest = let p = map fst programs
                   expect = map snd programs
                   actual = evalStateT (runMultiple p) ([], []) in
                   zip3 p expect  . map printExp <$> actual
+
