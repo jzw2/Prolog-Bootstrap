@@ -202,13 +202,15 @@ eval exp = case exp of
     return $ Lambda env body
   (List (Atom "+") body) -> do
     l <- expToList body
-    (numbers :: [Int] )<- mapM (\case
-                           Atom num -> case readMaybe num :: Maybe Int of
-                              Just parsedNum -> return parsedNum
-                              Nothing -> lift $ Left $ "Failed to parse " ++ num ++ " as a number"
-                           x -> lift $ Left $ printExp x ++ " is not an expression") l
+    (numbers :: [Int] )<- mapM (\exp -> do
+                                       eExp <- eval exp
+                                       case eExp of
+                                           Atom num -> case readMaybe num :: Maybe Int of
+                                              Just parsedNum -> return parsedNum
+                                              Nothing -> lift $ Left $ "Failed to parse " ++ num ++ " as a number"
+                                           x -> lift $ Left $ printExp x ++ " is not an expression") l
 
-    return $ Atom $ show $ (sum numbers :: Int)
+    return $ Atom $ show (sum numbers :: Int)
   -- List (Lambda lamEnv (List pattern body)) outer | trace ("evaluating " ++ printExp body ++ " applied to " ++ printExp outer) False -> undefined
   List (Lambda lamEnv (List pattern body)) outer -> do
     (env, store) <- get
