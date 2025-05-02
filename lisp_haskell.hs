@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans.Class
@@ -7,6 +8,7 @@ import Data.List
 import Data.Maybe
 import Debug.Trace
 import System.IO
+import Text.Read hiding (get, lift)
 
 data Exp = Lambda Env Exp | Atom String | List Exp Exp deriving (Show, Eq)
 
@@ -68,7 +70,7 @@ parseList =
 validAtomChar :: Parser Char
 validAtomChar = do
   c <- parseChar
-  guard (isAlphaNum c || c `elem` "!@#$%^&*")
+  guard (isAlphaNum c || c `elem` "!@#$%^&*+-")
   pure c
 
 parseAtom :: Parser String
@@ -165,6 +167,12 @@ evalList (List a (Atom "Nil")) = eval a
 evalList (List a (Atom _)) = lift $ Left "bad lambda"
 evalList (List a b) = eval a >> evalList b
 
+expToList :: Exp -> ProgramState [Exp]
+expToList (Atom "Nil") = return []
+expToList (List a rest) = (a:) <$> expToList rest
+expToList other = lift $ Left $ printExp other ++ " was not a list"
+
+
 eval :: Exp -> ProgramState Exp
 -- eval exp | trace (printExp exp) False = undefined
 eval exp = case exp of
@@ -192,6 +200,15 @@ eval exp = case exp of
   (List (Atom "lambda") body) -> do
     (env, _) <- get
     return $ Lambda env body
+  (List (Atom "+") body) -> do
+    l <- expToList body
+    (numbers :: [Int] )<- mapM (\case
+                           Atom num -> case readMaybe num :: Maybe Int of
+                              Just parsedNum -> return parsedNum
+                              Nothing -> lift $ Left $ "Failed to parse " ++ num ++ " as a number"
+                           x -> lift $ Left $ printExp x ++ " is not an expression") l
+
+    return $ Atom $ show $ (sum numbers :: Int)
   -- List (Lambda lamEnv (List pattern body)) outer | trace ("evaluating " ++ printExp body ++ " applied to " ++ printExp outer) False -> undefined
   List (Lambda lamEnv (List pattern body)) outer -> do
     (env, store) <- get
